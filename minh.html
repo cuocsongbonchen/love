@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MINH DANG</title>
+<title>Triệu Kiếm LOVE</title>
 
 <style>
 body {
@@ -47,13 +47,20 @@ video {
 
 <body>
 
+<div class="hint">
+✋ Xòe tay: Trái tim<br>
+✊ Nắm tay: LOVE<br>
+🤘 Rock: Đội hình
+</div>
+
 <div id="video-container">
 <video id="input_video"></video>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- CDN CHUẨN VERCEL -->
+<script src="https://unpkg.com/@mediapipe/hands/hands.js"></script>
+<script src="https://unpkg.com/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 
 <script>
 const videoElement = document.getElementById("input_video");
@@ -67,21 +74,17 @@ const swordData = [];
 function generateLOVEPoints() {
     const pts = [];
 
-    // L
     for(let y=0;y<10;y++) pts.push({x:-300,y:y*40});
     for(let x=0;x<6;x++) pts.push({x:-300+x*40,y:0});
 
-    // O
     for(let a=0;a<Math.PI*2;a+=0.2)
         pts.push({x:-100+Math.cos(a)*120,y:200+Math.sin(a)*120});
 
-    // V
     for(let i=0;i<10;i++){
         pts.push({x:100-i*20,y:200-i*40});
         pts.push({x:100+i*20,y:200-i*40});
     }
 
-    // E
     for(let y=0;y<10;y++) pts.push({x:300,y:y*40});
     for(let x=0;x<6;x++){
         pts.push({x:300+x*40,y:400});
@@ -93,7 +96,7 @@ function generateLOVEPoints() {
 }
 const lovePoints = generateLOVEPoints();
 
-/* ===== THREE.JS ===== */
+/* ===== THREE ===== */
 function initThree(){
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75,innerWidth/innerHeight,1,3000);
@@ -107,7 +110,7 @@ function initThree(){
     const mat = new THREE.MeshBasicMaterial({
         color: 0xff4da6,
         emissive: new THREE.Color(0xff66cc),
-        emissiveIntensity: 1.2
+        emissiveIntensity: 1.5
     });
 
     swordMesh = new THREE.InstancedMesh(geo,mat,count);
@@ -125,11 +128,13 @@ function initThree(){
     }
 }
 
-/* ===== AI TAY ===== */
+/* ===== AI ===== */
 function onResults(res){
     if(!res.multiHandLandmarks) return;
-    const lm = res.multiHandLandmarks[0];
 
+    console.log("HAND OK"); // test
+
+    const lm = res.multiHandLandmarks[0];
     const tx = (lm[8].x-0.5)*1800;
     const ty = -(lm[8].y-0.5)*1200;
 
@@ -139,7 +144,6 @@ function onResults(res){
     for(let i=0;i<count;i++){
         const s = swordData[i];
 
-        // ROCK → đội hình
         if(isRock){
             const row=40;
             const x=(i%row)*40-row*20;
@@ -147,17 +151,13 @@ function onResults(res){
             s.pos.x+=(x-s.pos.x)*0.1;
             s.pos.y+=(y-s.pos.y)*0.1;
         }
-
-        // NẮM TAY → LOVE
         else if(isFist){
             const p = lovePoints[i%lovePoints.length];
-            const x = tx+p.x+Math.sin(Date.now()*0.01+i)*5;
+            const x = tx+p.x;
             const y = ty+p.y;
             s.pos.x+=(x-s.pos.x)*0.1;
             s.pos.y+=(y-s.pos.y)*0.1;
         }
-
-        // XÒE TAY → TRÁI TIM
         else{
             const t = i/count*Math.PI*2;
             const x = 16*Math.pow(Math.sin(t),3);
@@ -178,13 +178,23 @@ function onResults(res){
     swordMesh.instanceMatrix.needsUpdate=true;
 }
 
-/* ===== MEDIAPIPE ===== */
-const hands = new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-hands.setOptions({maxNumHands:1,minDetectionConfidence:0.7,minTrackingConfidence:0.7});
+/* ===== MEDIAPIPE CHUẨN HTTPS ===== */
+const hands = new Hands({
+    locateFile: f => `https://unpkg.com/@mediapipe/hands/${f}`
+});
+
+hands.setOptions({
+    maxNumHands:1,
+    minDetectionConfidence:0.7,
+    minTrackingConfidence:0.7
+});
+
 hands.onResults(onResults);
 
 const cam = new Camera(videoElement,{
-    onFrame:async()=>{await hands.send({image:videoElement});},
+    onFrame: async ()=>{
+        await hands.send({image: videoElement});
+    },
     width:640,height:480
 });
 
