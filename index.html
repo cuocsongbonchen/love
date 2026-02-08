@@ -1,133 +1,139 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vạn Kiếm Quy Tông</title>
-    <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
-        canvas { display: block; }
-        #video-container {
-            position: fixed; bottom: 20px; right: 20px;
-            width: 240px; height: 180px;
-            border: 2px solid #00ff88; border-radius: 12px;
-            overflow: hidden; transform: scaleX(-1);
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
-        }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .hint {
-            position: fixed; top: 20px; left: 20px; color: #00ff88;
-            background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px;
-            pointer-events: none; text-transform: uppercase; letter-spacing: 1px;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Minh Dang</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+body{
+    height:100vh;
+    overflow:hidden;
+    background: radial-gradient(circle at top, #1a002a, #000);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:white;
+}
+
+/* Nền hạt */
+canvas{
+    position:fixed;
+    inset:0;
+    z-index:0;
+}
+
+/* Khối trung tâm */
+.container{
+    position:relative;
+    z-index:2;
+    text-align:center;
+}
+
+/* Chữ MINH DANG */
+.title{
+    font-size:80px;
+    letter-spacing:6px;
+    text-transform:uppercase;
+    color:#ff66cc;
+    text-shadow:
+        0 0 10px #ff66cc,
+        0 0 30px #ff1aff,
+        0 0 60px #ff1aff;
+    animation: glow 2s infinite alternate;
+}
+
+/* Nút */
+.start-btn{
+    margin-top:40px;
+    padding:15px 50px;
+    font-size:20px;
+    border:none;
+    border-radius:50px;
+    background: linear-gradient(45deg,#ff4da6,#a855f7);
+    color:white;
+    cursor:pointer;
+    box-shadow:0 0 20px #ff66cc;
+    transition:0.3s;
+}
+
+.start-btn:hover{
+    transform:scale(1.1);
+    box-shadow:0 0 40px #ff1aff;
+}
+
+/* Hiệu ứng glow */
+@keyframes glow{
+    from{ text-shadow:0 0 10px #ff66cc; }
+    to{ text-shadow:0 0 30px #ff1aff, 0 0 80px #ff1aff; }
+}
+</style>
 </head>
+
 <body>
 
-<div id="video-container">
-    <video id="input_video"></video>
+<canvas id="bg"></canvas>
+
+<div class="container">
+    <div class="title">MINH DANG</div>
+    <button class="start-btn" onclick="start()">BẮT ĐẦU</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
 <script>
-    const videoElement = document.getElementById('input_video');
-    let scene, camera, renderer, swordMesh;
-    const count = 400;
-    const dummy = new THREE.Object3D();
-    const swordData = [];
+function start(){
+    document.body.style.opacity = 0;
+    setTimeout(()=>{
+        window.location.href = "minh.html";
+    },500);
+}
 
-    function initThree() {
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 3000);
-        camera.position.z = 1000;
+/* PARTICLE NỀN */
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
 
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        document.body.appendChild(renderer.domElement);
-        const geometry = new THREE.ConeGeometry(3, 50, 4); 
-        const material = new THREE.MeshBasicMaterial({ 
-            color: 0x00ffcc,
-            wireframe: false
-        });
+let particles = [];
 
-        swordMesh = new THREE.InstancedMesh(geometry, material, count);
-        scene.add(swordMesh);
-        for (let i = 0; i < count; i++) {
-            swordData.push({
-                pos: new THREE.Vector3((Math.random()-0.5)*2000, (Math.random()-0.5)*2000, (Math.random()-0.5)*1000),
-                speed: Math.random() * 0.05 + 0.02
-            });
-        }
-    }
-    function onResults(results) {
-        if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
-
-        const landmarks = results.multiHandLandmarks[0];
-        const tx = (landmarks[8].x - 0.5) * 1800;
-        const ty = -(landmarks[8].y - 0.5) * 1200;
-        const isFist = Math.hypot(landmarks[8].x - landmarks[4].x, landmarks[8].y - landmarks[4].y) < 0.06;
-        const isRock = (landmarks[20].y < landmarks[18].y) && (landmarks[8].y < landmarks[6].y) && (landmarks[12].y > landmarks[10].y);
-
-        for (let i = 0; i < count; i++) {
-            const s = swordData[i];
-
-            if (isRock) {
-                const rowSize = 40;
-                const xPos = (i % rowSize) * 40 - (rowSize * 20);
-                const yPos = 500 + Math.floor(i / rowSize) * 50;
-                s.pos.x += (xPos - s.pos.x) * 0.1;
-                s.pos.y += (yPos - s.pos.y) * 0.1;
-                dummy.lookAt(s.pos.x, s.pos.y - 100, 0); 
-            } 
-            else if (isFist) {
-                s.pos.x += (tx - s.pos.x) * (s.speed * 2);
-                s.pos.y += (ty - s.pos.y) * (s.speed * 2);
-                dummy.lookAt(tx, ty, 0);
-            } 
-            else {
-                const angle = (i / count) * Math.PI * 2 + Date.now() * 0.002;
-                const radius = 300;
-                const targetX = tx + Math.cos(angle) * radius;
-                const targetY = ty + Math.sin(angle) * radius;
-                s.pos.x += (targetX - s.pos.x) * 0.1;
-                s.pos.y += (targetY - s.pos.y) * 0.1;
-                dummy.lookAt(tx, ty, 0);
-            }
-
-            dummy.position.copy(s.pos);
-            dummy.updateMatrix();
-            swordMesh.setMatrixAt(i, dummy.matrix);
-        }
-        swordMesh.instanceMatrix.needsUpdate = true;
-    }
-
-    const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-    hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
-    hands.onResults(onResults);
-
-    const cameraUtils = new Camera(videoElement, {
-        onFrame: async () => { await hands.send({image: videoElement}); },
-        width: 640, height: 480
+for(let i=0;i<120;i++){
+    particles.push({
+        x:Math.random()*canvas.width,
+        y:Math.random()*canvas.height,
+        r:Math.random()*2+1,
+        dx:(Math.random()-0.5)*0.5,
+        dy:(Math.random()-0.5)*0.5
     });
+}
 
-    initThree();
-    cameraUtils.start();
+function animate(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(let p of particles){
+        p.x+=p.dx;
+        p.y+=p.dy;
 
-    function animate() {
-        requestAnimationFrame(animate);
-        renderer.render(scene, camera);
+        if(p.x<0||p.x>canvas.width) p.dx*=-1;
+        if(p.y<0||p.y>canvas.height) p.dy*=-1;
+
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fillStyle="rgba(255,100,200,0.8)";
+        ctx.fill();
     }
-    animate();
+    requestAnimationFrame(animate);
+}
+animate();
 
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+window.onresize=()=>{
+    canvas.width=innerWidth;
+    canvas.height=innerHeight;
+};
 </script>
 
 </body>

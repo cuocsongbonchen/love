@@ -3,216 +3,145 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Triệu Kiếm LOVE</title>
+<title>Heart Control</title>
 
 <style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background: black;
-    font-family: Arial;
-}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:Arial}
+canvas{display:block}
 
-#video-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 220px;
-    height: 160px;
-    border: 2px solid hotpink;
-    border-radius: 12px;
-    overflow: hidden;
-    transform: scaleX(-1);
-    box-shadow: 0 0 20px hotpink;
+#videoBox{
+position:fixed;
+right:20px;
+bottom:20px;
+width:220px;
+height:160px;
+border:2px solid hotpink;
+border-radius:12px;
+overflow:hidden;
+transform:scaleX(-1);
+box-shadow:0 0 20px hotpink;
 }
+video{width:100%;height:100%;object-fit:cover}
 
-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.hint {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    color: hotpink;
-    background: rgba(0,0,0,0.7);
-    padding: 12px 18px;
-    border-radius: 10px;
-    font-size: 14px;
+#text{
+position:fixed;
+top:20px;
+left:50%;
+transform:translateX(-50%);
+color:hotpink;
+font-size:22px;
+letter-spacing:2px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="hint">
-✋ Xòe tay: Trái tim<br>
-✊ Nắm tay: LOVE<br>
-🤘 Rock: Đội hình
+<div id="text">ĐƯA NGÓN TRỎ ĐIỀU KHIỂN TRÁI TIM</div>
+
+<div id="videoBox">
+<video id="video"></video>
 </div>
 
-<div id="video-container">
-<video id="input_video"></video>
-</div>
-
-<!-- CDN CHUẨN VERCEL -->
-<script src="https://unpkg.com/@mediapipe/hands/hands.js"></script>
-<script src="https://unpkg.com/@mediapipe/camera_utils/camera_utils.js"></script>
-<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
-const videoElement = document.getElementById("input_video");
-let scene, camera, renderer, swordMesh;
+const video = document.getElementById("video");
 
-const count = 400;
+let scene,camera,renderer,heartMesh;
+const total = 300;
 const dummy = new THREE.Object3D();
-const swordData = [];
+const hearts = [];
 
-/* ===== TẠO ĐIỂM CHỮ LOVE ===== */
-function generateLOVEPoints() {
-    const pts = [];
+function init3D(){
+scene = new THREE.Scene();
+camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,1,2000);
+camera.position.z = 800;
 
-    for(let y=0;y<10;y++) pts.push({x:-300,y:y*40});
-    for(let x=0;x<6;x++) pts.push({x:-300+x*40,y:0});
+renderer = new THREE.WebGLRenderer({alpha:true,antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+document.body.appendChild(renderer.domElement);
 
-    for(let a=0;a<Math.PI*2;a+=0.2)
-        pts.push({x:-100+Math.cos(a)*120,y:200+Math.sin(a)*120});
+const shape = new THREE.Shape();
+shape.moveTo(0,25);
+shape.bezierCurveTo(0,25,-25,0,-50,0);
+shape.bezierCurveTo(-80,0,-80,40,-80,40);
+shape.bezierCurveTo(-80,80,-40,100,0,120);
+shape.bezierCurveTo(40,100,80,80,80,40);
+shape.bezierCurveTo(80,40,80,0,50,0);
+shape.bezierCurveTo(25,0,0,25,0,25);
 
-    for(let i=0;i<10;i++){
-        pts.push({x:100-i*20,y:200-i*40});
-        pts.push({x:100+i*20,y:200-i*40});
-    }
+const geo = new THREE.ShapeGeometry(shape);
+geo.scale(0.8,0.8,0.8);
 
-    for(let y=0;y<10;y++) pts.push({x:300,y:y*40});
-    for(let x=0;x<6;x++){
-        pts.push({x:300+x*40,y:400});
-        pts.push({x:300+x*40,y:200});
-        pts.push({x:300+x*40,y:0});
-    }
+const mat = new THREE.MeshBasicMaterial({color:0xff4da6});
 
-    return pts;
+heartMesh = new THREE.InstancedMesh(geo,mat,total);
+scene.add(heartMesh);
+
+for(let i=0;i<total;i++){
+hearts.push({
+pos:new THREE.Vector3((Math.random()-0.5)*1500,(Math.random()-0.5)*1500,0),
+speed:Math.random()*0.05+0.03
+});
 }
-const lovePoints = generateLOVEPoints();
-
-/* ===== THREE ===== */
-function initThree(){
-    scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75,innerWidth/innerHeight,1,3000);
-    camera.position.z = 1000;
-
-    renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
-    renderer.setSize(innerWidth,innerHeight);
-    document.body.appendChild(renderer.domElement);
-
-    const geo = new THREE.ConeGeometry(3,50,4);
-    const mat = new THREE.MeshBasicMaterial({
-        color: 0xff4da6,
-        emissive: new THREE.Color(0xff66cc),
-        emissiveIntensity: 1.5
-    });
-
-    swordMesh = new THREE.InstancedMesh(geo,mat,count);
-    scene.add(swordMesh);
-
-    for(let i=0;i<count;i++){
-        swordData.push({
-            pos:new THREE.Vector3(
-                (Math.random()-0.5)*2000,
-                (Math.random()-0.5)*2000,
-                (Math.random()-0.5)*1000
-            ),
-            speed:Math.random()*0.05+0.02
-        });
-    }
 }
 
-/* ===== AI ===== */
 function onResults(res){
-    if(!res.multiHandLandmarks) return;
+if(!res.multiHandLandmarks.length) return;
 
-    console.log("HAND OK"); // test
+const p = res.multiHandLandmarks[0][8];
+const tx = (p.x-0.5)*1400;
+const ty = -(p.y-0.5)*900;
 
-    const lm = res.multiHandLandmarks[0];
-    const tx = (lm[8].x-0.5)*1800;
-    const ty = -(lm[8].y-0.5)*1200;
+for(let i=0;i<total;i++){
+const h = hearts[i];
+h.pos.x += (tx-h.pos.x)*h.speed;
+h.pos.y += (ty-h.pos.y)*h.speed;
 
-    const isFist = Math.hypot(lm[8].x-lm[4].x,lm[8].y-lm[4].y)<0.06;
-    const isRock = (lm[20].y<lm[18].y)&&(lm[8].y<lm[6].y);
-
-    for(let i=0;i<count;i++){
-        const s = swordData[i];
-
-        if(isRock){
-            const row=40;
-            const x=(i%row)*40-row*20;
-            const y=500+Math.floor(i/row)*50;
-            s.pos.x+=(x-s.pos.x)*0.1;
-            s.pos.y+=(y-s.pos.y)*0.1;
-        }
-        else if(isFist){
-            const p = lovePoints[i%lovePoints.length];
-            const x = tx+p.x;
-            const y = ty+p.y;
-            s.pos.x+=(x-s.pos.x)*0.1;
-            s.pos.y+=(y-s.pos.y)*0.1;
-        }
-        else{
-            const t = i/count*Math.PI*2;
-            const x = 16*Math.pow(Math.sin(t),3);
-            const y = 13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
-            const scale = 25+Math.sin(Date.now()*0.005)*5;
-            const tx2 = tx+x*scale;
-            const ty2 = ty+y*scale;
-            s.pos.x+=(tx2-s.pos.x)*0.1;
-            s.pos.y+=(ty2-s.pos.y)*0.1;
-        }
-
-        dummy.position.copy(s.pos);
-        dummy.lookAt(tx,ty,0);
-        dummy.updateMatrix();
-        swordMesh.setMatrixAt(i,dummy.matrix);
-    }
-
-    swordMesh.instanceMatrix.needsUpdate=true;
+dummy.position.copy(h.pos);
+dummy.rotation.z += 0.02;
+dummy.updateMatrix();
+heartMesh.setMatrixAt(i,dummy.matrix);
+}
+heartMesh.instanceMatrix.needsUpdate = true;
 }
 
-/* ===== MEDIAPIPE CHUẨN HTTPS ===== */
 const hands = new Hands({
-    locateFile: f => `https://unpkg.com/@mediapipe/hands/${f}`
+locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
 });
 
 hands.setOptions({
-    maxNumHands:1,
-    minDetectionConfidence:0.7,
-    minTrackingConfidence:0.7
+maxNumHands:1,
+modelComplexity:1,
+minDetectionConfidence:0.7,
+minTrackingConfidence:0.7
 });
 
 hands.onResults(onResults);
 
-const cam = new Camera(videoElement,{
-    onFrame: async ()=>{
-        await hands.send({image: videoElement});
-    },
-    width:640,height:480
+const cam = new Camera(video,{
+onFrame:async()=>{await hands.send({image:video});},
+width:640,height:480
 });
-
-/* ===== LOOP ===== */
-function animate(){
-    requestAnimationFrame(animate);
-    renderer.render(scene,camera);
-}
-
-window.addEventListener("resize",()=>{
-    camera.aspect=innerWidth/innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth,innerHeight);
-});
-
-initThree();
 cam.start();
+
+function animate(){
+requestAnimationFrame(animate);
+renderer.render(scene,camera);
+}
+init3D();
 animate();
+
+window.onresize=()=>{
+camera.aspect=innerWidth/innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(innerWidth,innerHeight);
+}
 </script>
+
 </body>
 </html>
