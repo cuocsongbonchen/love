@@ -3,18 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Heart Shape Control</title>
+<title>Heart Love Morph</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#000;overflow:hidden}
 canvas{display:block}
 #videoBox{
-position:fixed;
-right:20px;
-bottom:20px;
-width:220px;
-height:160px;
+position:fixed;right:20px;bottom:20px;
+width:220px;height:160px;
 border:2px solid hotpink;
 border-radius:12px;
 overflow:hidden;
@@ -23,19 +20,15 @@ box-shadow:0 0 20px hotpink;
 }
 video{width:100%;height:100%;object-fit:cover}
 #txt{
-position:fixed;
-top:20px;
-left:50%;
+position:fixed;top:20px;left:50%;
 transform:translateX(-50%);
-color:hotpink;
-font-size:22px;
-letter-spacing:2px;
+color:hotpink;font-size:22px;letter-spacing:2px;
 }
 </style>
 </head>
 <body>
 
-<div id="txt">TRÁI TIM ĐI THEO TAY BẠN</div>
+<div id="txt">XÒE TAY = ❤️ | NẮM TAY = LOVE</div>
 
 <div id="videoBox">
 <video id="video"></video>
@@ -48,67 +41,117 @@ letter-spacing:2px;
 <script>
 const video = document.getElementById("video");
 let scene,camera,renderer,mesh;
-const COUNT = 800;
+const COUNT = 1200;
 const dummy = new THREE.Object3D();
-const points = [];
+const particles = [];
+let targets = [];
 
-function heart(t){
+function heartShape(t){
 const x = 16*Math.pow(Math.sin(t),3);
 const y = 13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t);
 return {x,y};
 }
 
-function init(){
-scene = new THREE.Scene();
-camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,1,2000);
-camera.position.z = 800;
+function generateHeart(){
+const arr=[];
+for(let i=0;i<COUNT;i++){
+const t=Math.random()*Math.PI*2;
+const h=heartShape(t);
+arr.push({x:h.x*22+(Math.random()-0.5)*20,
+          y:h.y*22+(Math.random()-0.5)*20});
+}
+return arr;
+}
 
-renderer = new THREE.WebGLRenderer({alpha:true,antialias:true});
+// chữ LOVE (vẽ thủ công)
+function generateLOVE(){
+const arr=[];
+const text="LOVE";
+const canvas=document.createElement("canvas");
+canvas.width=600;canvas.height=200;
+const ctx=canvas.getContext("2d");
+ctx.fillStyle="#fff";
+ctx.font="bold 160px Arial";
+ctx.fillText(text,20,160);
+
+const img=ctx.getImageData(0,0,600,200).data;
+for(let y=0;y<200;y++){
+for(let x=0;x<600;x++){
+const i=(y*600+x)*4;
+if(img[i]>200){
+arr.push({x:(x-300)*1.2,y:(100-y)*1.2});
+}
+}
+}
+
+// random fill nếu thiếu hạt
+while(arr.length<COUNT){
+arr.push(arr[Math.floor(Math.random()*arr.length)]);
+}
+return arr.slice(0,COUNT);
+}
+
+const heartPoints=generateHeart();
+const lovePoints=generateLOVE();
+
+function init(){
+scene=new THREE.Scene();
+camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,1,2000);
+camera.position.z=800;
+
+renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
-const geo = new THREE.CircleGeometry(4,8);
-const mat = new THREE.MeshBasicMaterial({color:0xff4da6});
-mesh = new THREE.InstancedMesh(geo,mat,COUNT);
+const geo=new THREE.CircleGeometry(3,6);
+const mat=new THREE.MeshBasicMaterial({color:0xff4da6});
+mesh=new THREE.InstancedMesh(geo,mat,COUNT);
 scene.add(mesh);
 
-// tạo hình trái tim to
 for(let i=0;i<COUNT;i++){
-const t = Math.random()*Math.PI*2;
-const h = heart(t);
-points.push({
-ox: h.x*25 + (Math.random()-0.5)*20,
-oy: h.y*25 + (Math.random()-0.5)*20,
-pos: new THREE.Vector3()
+particles.push({
+pos:new THREE.Vector3(),
+tx:heartPoints[i].x,
+ty:heartPoints[i].y
 });
 }
+targets=heartPoints;
 }
 
 let cx=0,cy=0;
 
 function onResults(res){
 if(!res.multiHandLandmarks.length) return;
-const p = res.multiHandLandmarks[0][8];
-cx = (p.x-0.5)*1000;
-cy = -(p.y-0.5)*700;
+const lm=res.multiHandLandmarks[0];
+const p=lm[8];
+cx=(p.x-0.5)*1000;
+cy=-(p.y-0.5)*700;
+
+// phát hiện nắm tay
+const fist = Math.hypot(lm[8].x-lm[4].x, lm[8].y-lm[4].y) < 0.05;
+targets = fist ? lovePoints : heartPoints;
 }
 
 function animate(){
 requestAnimationFrame(animate);
 
 for(let i=0;i<COUNT;i++){
-const p = points[i];
-p.pos.x += (cx + p.ox - p.pos.x)*0.08;
-p.pos.y += (cy + p.oy - p.pos.y)*0.08;
+const p=particles[i];
+p.tx=targets[i].x;
+p.ty=targets[i].y;
+
+p.pos.x+=(cx+p.tx-p.pos.x)*0.08;
+p.pos.y+=(cy+p.ty-p.pos.y)*0.08;
+
 dummy.position.copy(p.pos);
 dummy.updateMatrix();
 mesh.setMatrixAt(i,dummy.matrix);
 }
-mesh.instanceMatrix.needsUpdate = true;
+mesh.instanceMatrix.needsUpdate=true;
 renderer.render(scene,camera);
 }
 
-const hands = new Hands({
+const hands=new Hands({
 locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
 });
 hands.setOptions({
@@ -119,7 +162,7 @@ minTrackingConfidence:0.7
 });
 hands.onResults(onResults);
 
-const cam = new Camera(video,{
+const cam=new Camera(video,{
 onFrame:async()=>{await hands.send({image:video});},
 width:640,height:480
 });
